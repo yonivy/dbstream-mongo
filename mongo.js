@@ -1,8 +1,8 @@
-var mongodb = require( "mongodb" );
+var util = require( "util" );
 var events = require( "events" );
 var extend = require( "extend" );
+var mongodb = require( "mongodb" );
 var db = require( "dbstream" );
-var util = require( "util" );
 
 module.exports.mongodb = mongodb
 module.exports.ObjectID = mongodb.ObjectID

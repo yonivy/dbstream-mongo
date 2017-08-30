@@ -1,10 +1,10 @@
-var test = require( "dbstream/test" );
-var mongodb = require( "mongodb" );
 var stream = require( "stream" );
 var events = require( "events" );
 var assert = require( "assert" );
-var db = require( "./mongo" );
 var sift = require( "sift" );
+var test = require( "dbstream/test" );
+var mongodb = require( "mongodb" );
+var db = require( "./mongo" );
 
 var connect = mongodb.MongoClient.connect;
 
