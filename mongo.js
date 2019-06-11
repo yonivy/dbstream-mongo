@@ -1,8 +1,8 @@
-var mongodb = require( "mongodb" );
-var events = require( "events" );
-var extend = require( "extend" );
-var db = require( "dbstream" );
-var util = require( "util" );
+const mongodb = require( 'mongodb' );
+const events = require( 'events' );
+const extend = require( 'extend' );
+const db = require( 'dbstream' );
+const util = require( 'util' );
 
 module.exports.mongodb = mongodb
 module.exports.ObjectID = mongodb.ObjectID
@@ -21,7 +21,7 @@ Cursor.prototype._save = function ( object, callback ) {
 
         var conn = this;
         var serialized = replace( {}, object );
-        if ( typeof serialized.id != "undefined" ) {
+        if ( typeof serialized.id != 'undefined' ) {
             serialized._id = toObjectID( serialized.id );
             delete serialized.id;
         }
@@ -29,7 +29,7 @@ Cursor.prototype._save = function ( object, callback ) {
         if ( !serialized._id ) {
             collection.insertOne( serialized, ondone )
         } else {
-            const filter = { "_id": serialized._id }
+            const filter = { '_id': serialized._id }
             const options = { upsert: true }
             collection.replaceOne( filter,  serialized, options, ondone );
         }
@@ -37,7 +37,7 @@ Cursor.prototype._save = function ( object, callback ) {
         function ondone ( err, result ) {
             conn.done();
             if ( err ) return callback( toError( err ) );
-            if ( typeof result == "object" ) {
+            if ( typeof result == 'object' ) {
                 if ( result.ops && result.ops.length > 0 ) {
                     result = result.ops[0]
                 }
@@ -53,7 +53,7 @@ Cursor.prototype._save = function ( object, callback ) {
 
 Cursor.prototype._remove = function ( object, callback ) {
     if ( !object.id ) {
-        var msg = "Unable to remove object without an ID";
+        var msg = 'Unable to remove object without an ID';
         return callback( new Error( msg ) );
     }
 
@@ -87,21 +87,21 @@ Cursor.prototype._load = function () {
 
     var that = this;
     this._conn.open( function ( err, collection ) {
-        if ( err ) return this.emit( "error", toError( err ) );
+        if ( err ) return this.emit( 'error', toError( err ) );
         var conn = this;
         collection
             .find( query, options )
             .stream()
-            .on( "error", function ( err ) {
+            .on( 'error', function ( err ) {
                 conn.done();
-                that.emit( "error", toError( err ) );
+                that.emit( 'error', toError( err ) );
             })
-            .on( "end", function () {
+            .on( 'end', function () {
                 conn.done();
                 that.push( null );
                 that._reading = false;
             })
-            .on( "data", function ( obj ) {
+            .on( 'data', function ( obj ) {
                 obj.id = fromObjectID( obj._id );
                 delete obj._id;
                 that.push( obj );
@@ -117,7 +117,7 @@ function replace ( obj, other ) {
 
     // remove non-existing keys
     for ( name in obj ) {
-        if ( typeof other[ name ] == "undefined" ) {
+        if ( typeof other[ name ] == 'undefined' ) {
             delete obj[ name ];
         }
     }
@@ -204,17 +204,17 @@ function getClient ( url, options, callback ) {
 }
 
 module.exports.connect = function( url, options ) {
-    const collection = options.collection
-    delete options.collection
+    const collection = options.collection;
+    delete options.collection;
 
     if ( !collection ) {
-        throw new Error( "options.collection is required" );
+        throw new Error( 'options.collection is required' );
     }
 
     // Default maxRetries value is 1 for backwards compatibility
-    options.maxRetries || (options.maxRetries = 1)
+    options.maxRetries || (options.maxRetries = 1);
     // Set the number of the current try
-    options.retry = 1
+    options.retry = 1;
 
     var conn = new events.EventEmitter();
     var callbacks = [];
@@ -243,11 +243,11 @@ module.exports.connect = function( url, options ) {
 
 function toObjectID( id ) {
     if (id.$in) {
-        id.$in = id.$in.map(toObjectID)
-        return id
+        id.$in = id.$in.map(toObjectID);
+        return id;
     }
 
-    if ( typeof id == "string" && id.length == 24 && mongodb.ObjectID.isValid( id ) ) {
+    if ( typeof id == 'string' && id.length == 24 && mongodb.ObjectID.isValid( id ) ) {
         return mongodb.ObjectID( id );
     } else {
         return id;
