@@ -217,7 +217,6 @@ module.exports.connect = function( url, options ) {
     options.retry = 1;
 
     var conn = new events.EventEmitter();
-    var callbacks = [];
     conn.open = function ( callback ) {
         getClient( url, options, function ( err, client ) {
             if ( err ) {
