@@ -1,3 +1,4 @@
+const debug = require('debug')('dbstream-mongo');
 const mongodb = require( 'mongodb' );
 const events = require( 'events' );
 const extend = require( 'extend' );
@@ -135,16 +136,19 @@ var connections = {};
 
 function closeClient( url, options ) {
     if ( !connections[ url ] || !connections[ url ].client ) {
+        debug('connection does not exist');
         return;
     }
 
     connections[ url ].clients -= 1;
     if ( connections[ url ].clients > 0 ) {
+        debug('cannot close connection due to active clients for', url);
         return; // still has other open clients
     }
 
     // already scheduled to be closed
     if ( connections[ url ].closeTimeout ) {
+        debug('closing connection later, timeout already exists for', url);
         return;
     }
 
@@ -155,6 +159,7 @@ function closeClient( url, options ) {
     }
 
     connections[ url ].closeTimeout = setTimeout( function () {
+        debug('timeout reached, closing', url);
         connections[ url ].client.close()
         delete connections[ url ];
     }, closeTimeOut );
@@ -168,6 +173,7 @@ function getClient ( url, options, callback ) {
 
     // not connected at all
     if ( !connections[ url ] ) {
+        debug('connecting to', url);
         connections[ url ] = { callbacks: [ callback ], clients: 1 }
         mongodb.MongoClient.connect( url, options, function ready( err, client ) {
             if ( !err && client ) {
@@ -191,6 +197,7 @@ function getClient ( url, options, callback ) {
     clearTimeout( connections[ url ].closeTimeout );
     delete connections[ url ].closeTimeout;
 
+    debug('adding clients to', url, ' - clients count:', connections[ url ].clients + 1);
     connections[ url ].clients += 1;
 
     // already running, subscribe to get the connection callback
