@@ -247,6 +247,22 @@ module.exports.connect = function( url, options ) {
     return conn;
 }
 
+module.exports.destroy = function() {
+    for ( const url in connections ) {
+        debug('closing', url);
+
+        clearTimeout( connections[ url ].closeTimeout )
+        delete connections[ url ].closeTimeout;
+
+        if( connections[ url ].client ) {
+            connections[ url ].client.close();
+        }
+        delete connections[ url ];
+
+        debug('deleted', url);
+    }
+}
+
 function toObjectID( id ) {
     if (id.$in) {
         id.$in = id.$in.map(toObjectID);
