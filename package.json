@@ -25,13 +25,13 @@
   },
   "homepage": "https://github.com/panoplyio/dbstream-mongo",
   "devDependencies": {
-    "mocha": "^6.1.4",
+    "mocha": "^10.2.0",
     "sift": "0.0.18"
   },
   "dependencies": {
     "dbstream": "git+https://github.com/panoplyio/dbstream#v1.0.3",
-    "debug": "4.1.1",
-    "extend": "3.0.0",
+    "debug": "^4.3.4",
+    "extend": "^3.0.2",
     "mongodb": "3.6.11"
   }
 }
