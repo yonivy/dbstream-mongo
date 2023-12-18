@@ -29,7 +29,7 @@ new connection.Cursor()
 
 ### API
 
-This module implements the [dbstream](https://github.com/avinoamr/dbstream) API. For the complete documention see: https://github.com/avinoamr/dbstream
+This module implements the [dbstream](https://github.com/avinoamr/dbstream) API. For the complete documentation see: https://github.com/avinoamr/dbstream
 
 ###### connect( url, options )
 
