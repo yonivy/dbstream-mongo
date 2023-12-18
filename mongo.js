@@ -1,5 +1,5 @@
 const debug = require('debug')('dbstream-mongo');
-const mongodb = require('mongodb');
+const mongodb = require('mongodb-legacy');
 const events = require('events');
 const extend = require('extend');
 const db = require('dbstream');
