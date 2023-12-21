@@ -62,7 +62,7 @@ Cursor.prototype._remove = function (object, callback) {
     this._conn.open(function (err, collection) {
         if (err) return callback(toError(err));
         var conn = this;
-        collection.remove({ _id: id }, function (err) {
+        collection.deleteOne({ _id: id }, function (err) {
             conn.done();
             callback(toError(err));
         })
