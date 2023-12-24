@@ -1,5 +1,5 @@
 const debug = require('debug')('dbstream-mongo');
-const mongodb = require('mongodb');
+const mongodb = require('mongodb-legacy');
 const events = require('events');
 const extend = require('extend');
 const db = require('dbstream');
@@ -62,7 +62,7 @@ Cursor.prototype._remove = function (object, callback) {
     this._conn.open(function (err, collection) {
         if (err) return callback(toError(err));
         var conn = this;
-        collection.remove({ _id: id }, function (err) {
+        collection.deleteOne({ _id: id }, function (err) {
             conn.done();
             callback(toError(err));
         })

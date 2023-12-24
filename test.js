@@ -1,49 +1,56 @@
-const test = require("dbstream/test");
-const mongodb = require("mongodb");
-const stream = require("stream");
-const events = require("events");
+const { MongoMemoryServer } = require("mongodb-memory-server");
+const mongodb = require("mongodb-legacy");
 const assert = require("assert");
-const sift = require("sift");
+const test = require("dbstream/test");
 const db = require("./mongo");
 
-const connect = mongodb.MongoClient.connect;
-
-const options = { collection: "test", _closeTimeOut: 1 };
-const addr = "mongodb://127.0.0.1:27017/test1";
 
 describe("DatabaseStream Mongo", function () {
 
-    beforeEach(function () {
-        mongodb.MongoClient.connect = mock_connect;
+    let mongod, mongoUri;
+    const connect = mongodb.MongoClient.connect;
+
+    before(async function () {
+        mongodb.MongoClient.connect = connect;
+
+        mongod = await MongoMemoryServer.create();
+        mongoUri = mongod.getUri();
     })
 
-    after(function () {
+    after(async function () {
+        mongodb.MongoClient.connect = connect;
+
+        await mongod.stop();
+    })
+
+    beforeEach(async function () {
         mongodb.MongoClient.connect = connect;
     })
 
-    it("Implements the dbstream API", test(db.connect(addr, options)));
+    it("Implements the dbstream API", function (done) {
+        const addr = mongoUri + "test1";
+        const options = { collection: "test1" };
+        const conn = db.connect(addr, options);
 
-    it("Supports multiple collections", function (done) {
-        const addr = "mongodb://127.0.0.1:27017/test2";
-        const options1 = { collection: "test2", _closeTimeOut: 1 }
-        const options2 = { collection: "test3", _closeTimeOut: 1 }
-        const conn1 = db.connect(addr, options1)
-        const conn2 = db.connect(addr, options2)
+        const t = test(conn);
 
-        const data = [];
-        new conn1.Cursor()
-            .on("error", done)
-            .on("finish", function () {
-                new conn2.Cursor()
-                    .on("error", done)
-                    .on("data", data.push.bind(data))
-                    .on("end", function () {
-                        assert.deepEqual(data, []);
-                        done();
-                    })
-                    .find({})
-            })
-            .end({ hello: "world" })
+        t(done);
+    });
+
+    it("Supports multiple collections", async function () {
+        const addr = mongoUri + "test2";
+
+        const conn1 = new Connection(addr, { collection: "test2" });
+        const conn2 = new Connection(addr, { collection: "test3" });
+
+        await conn2.save({ hello: "world" });
+
+        const res1 = await conn1.find({});
+        const res2 = await conn2.find({});
+
+        assert.equal(res1.length, 0);
+        assert.equal(res2.length, 1);
+        assert.equal(res2[0].hello, "world");
     })
 
     it("Throws connection errors", function (done) {
@@ -51,30 +58,31 @@ describe("DatabaseStream Mongo", function () {
             callback({ err: "Something went wrong" });
         }
 
-        const addr = "mongodb://127.0.0.1:27017/test4";
-        const conn = db.connect(addr, { collection: "test4" })
+        const addr = mongoUri + "test4";
+        const conn = db.connect(addr, { collection: "test4" });
 
         new conn.Cursor()
             .on("error", function (err) {
-                assert(err.message, "Something went wrong")
+                assert(err instanceof Error);
+                assert(err.message, "Something went wrong");
                 done();
             })
             .end({ hello: "world" })
     })
 
     it("Retries connecting on timeout", function (done) {
-        let called = 0
+        let called = 0;
         mongodb.MongoClient.connect = function (url, options, callback) {
-            called += 1
+            called += 1;
             return callback({ err: "connection to [127.0.0.1:27017] timed out" });
         }
 
-        const addr = "mongodb://127.0.0.1:27017/test5";
-        const conn = db.connect(addr, { collection: "test5", maxRetries: 3 })
+        const addr = mongoUri + "test5";
+        const conn = db.connect(addr, { collection: "test5", maxRetries: 3 });
 
         conn.on("error", function () {
-            assert.equal(called, 3)
-            done()
+            assert.equal(called, 3);
+            done();
         })
 
         new conn.Cursor()
@@ -83,117 +91,135 @@ describe("DatabaseStream Mongo", function () {
             .find({})
     })
 
-    // ensure that all the connections were closed
-    after(function (done) {
-        this.timeout(15 * 1000);
-        setTimeout(function () {
-            var dbkeys = Object.keys(dbs);
-            assert.equal(dbkeys.length, 0, "No all connections were closed: " + dbkeys)
-            done();
-        }, 11 * 1000);
+    it("Creates a document", async function () {
+        const addr = mongoUri + "test6";
+        const conn = new Connection(addr);
+
+        const value = 1;
+
+        // no doc should exist before the insert
+        const res1 = await conn.find({ value });
+        assert.deepEqual(res1.length, 0);
+
+        // now add the doc and verify we can find it
+        await conn.save({ value });
+        const res2 = await conn.find({ value });
+        const doc = res2[0];
+
+        assert.deepEqual(res2.length, 1);
+        assert.deepEqual(doc.value, value);
+        assert(doc.id);
     })
 
+    it("Updates a document", async function () {
+        const addr = mongoUri + "test7";
+        const conn = new Connection(addr);
+
+        const value1 = 1;
+        const value2 = 2;
+
+        // create the doc
+        await conn.save({ value: value1 });
+        const res1 = await conn.find({ value: value1 });
+        const doc1 = res1[0];
+
+        assert.deepEqual(res1.length, 1);
+        assert.deepEqual(doc1.value, value1);
+
+        // update the doc
+        await conn.save({ value: value2, id: doc1.id });
+        const res2 = await conn.find({ value: value2 });
+        const doc2 = res2[0];
+
+        assert.deepEqual(res2.length, 1);
+        assert.deepEqual(doc2.value, value2);
+
+        // verify we worked on the same doc
+        assert.deepEqual(doc1.id, doc2.id);
+    })
+
+    it("Deletes a document", async function () {
+        const addr = mongoUri + "test8";
+        const conn = new Connection(addr);
+
+        const value = 1;
+
+        // add the doc and verify we can find it
+        await conn.save({ value });
+        const res1 = await conn.find({ value });
+        assert.deepEqual(res1.length, 1);
+
+        // now delete the doc and verify we can't find it
+        await conn.drop({ id: res1[0].id });
+        const res2 = await conn.find({ id: res1[0].id });
+        assert.deepEqual(res2.length, 0);
+    })
+
+    it("Finds many documents", async function () {
+        const addr = mongoUri + "test9";
+        const conn = new Connection(addr);
+
+        const value = 'a';
+
+        // make sure we start with a clean plate
+        const res1 = await conn.find({});
+        assert.deepEqual(res1.length, 0);
+
+        // now add the doc and verify we can find it
+        await conn.save({ value });
+        await conn.save({ value });
+        await conn.save({ value: 'b' });
+        const res2 = await conn.find({ value });
+
+        assert.equal(res2.length, 2);
+        assert.equal(res2[0].value, value);
+        assert.equal(res2[1].value, value);
+        assert.notEqual(res2[0].id, res2[1].id);
+    })
 });
 
-const dbs = {};
-
-function mock_connect(url, options, callback) {
-    dbs[url] || (dbs[url] = {});
-    process.nextTick(function () {
-        const client = new events.EventEmitter();
-        const db = {}
-
-        db.collection = function (name) {
-            if (!dbs[url][name]) {
-                dbs[url][name] = mock_collection();
-            }
-            return dbs[url][name];
-        };
-
-        client.db = function () {
-            return db
-        };
-
-        client.close = function (callback) {
-            process.nextTick(function () {
-                delete dbs[url];
-                this.collection = function () {
-                    throw new Error("Client connection has been closed");
-                }
-            }.bind(this));
-        };
-
-        callback(null, client);
-    })
-}
-
-function mock_collection() {
-    let data = [];
-    return {
-        insertOne: function (obj, callback) {
-            obj = copy(obj);
-            if (!obj._id) {
-                obj._id = (Math.random() * 1e17).toString(36);
-            }
-            this.remove({ _id: obj._id }, function (err, is_update) {
-                data.push(obj);
-                process.nextTick(function () {
-                    callback(null, (is_update) ? 1 : copy(obj));
-                })
-            });
-        },
-        replaceOne: function (filter, obj, options, callback) {
-            this.insertOne(obj, callback)
-        },
-        remove: function (query, callback) {
-            const sifter = sift(query);
-            let removed = 0;
-
-            data = data.filter(function (obj) {
-                if (!sifter.test(obj)) {
-                    return true;
-                } else {
-                    removed += 1;
-                    return false;
-                }
-            });
-            process.nextTick(function () {
-                callback(null, removed);
-            });
-        },
-        find: function (query, options) {
-            const sort = options.sort || [];
-            const skip = options.skip || 0;
-            const limit = options.limit || Infinity;
-            const s = new stream.Readable({ objectMode: true });
-            const results = sift(query, data);
-
-            results.sort(function (d1, d2) {
-                for (var s = 0; s < sort.length; s += 1) {
-                    s = sort[s];
-                    if (d1[s[0]] == d2[s[0]]) continue;
-                    return d1[s[0]] > d2[s[0]]
-                        ? s[1] : -s[1];
-                }
-                return 0;
-            })
-            results.splice(0, skip)
-            results.splice(limit);
-
-            s._read = function () {
-                if (results.length == 0) return this.push(null);
-                this.push(copy(results.shift()));
-            }
-
-            return {
-                stream: function () {
-                    return s;
-                }
-            }
-        },
+/**
+ * This promise based API aims to reduce the boilerplate of properly handling
+ * different stream events and function calls.
+ *
+ * An API like this can be useful in the package itself but making it production
+ * ready will require more thought and effort than there's time and need to right now.
+ */
+class Connection {
+    constructor(addr, options = { collection: 'test' }) {
+        this._conn = db.connect(addr, options)
     }
-}
 
-function copy(obj) {
-    return JSON.parse(JSON.stringify(obj));
+    async find(query) {
+        const results = []
+
+        return new Promise((resolve, reject) => {
+            new this._conn.Cursor()
+                .on("error", reject)
+                .on("end", () => resolve(results))
+                .on("data", results.push.bind(results))
+                .find(query)
+        })
+    }
+
+    async save(object) {
+        return new Promise((resolve, reject) => {
+            new this._conn.Cursor()
+                .on("error", reject)
+                .on("finish", resolve)
+                .end(object)
+        })
+    }
+
+    async drop(object) {
+        return new Promise((resolve, reject) => {
+            const cursor = new this._conn.Cursor()
+
+            cursor.on("error", reject)
+                .on("finish", resolve)
+                .remove(object)
+
+            cursor.end()
+        })
+    }
 }
