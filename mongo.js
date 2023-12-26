@@ -37,15 +37,13 @@ Cursor.prototype._save = function (object, callback) {
 
         function ondone(err, result) {
             conn.done();
+
             if (err) return callback(toError(err));
-            if (typeof result == 'object') {
-                if (result.ops && result.ops.length > 0) {
-                    result = result.ops[0];
-                }
-                result.id = fromObjectID(result._id);
-                delete result._id;
-                replace(object, result);
+
+            if (result.insertedId) {
+                object.id = fromObjectID(result.insertedId);
             }
+
             callback();
         }
 
@@ -61,6 +59,7 @@ Cursor.prototype._remove = function (object, callback) {
     var id = toObjectID(object.id);
     this._conn.open(function (err, collection) {
         if (err) return callback(toError(err));
+
         var conn = this;
         collection.deleteOne({ _id: id }, function (err) {
             conn.done();
@@ -89,6 +88,7 @@ Cursor.prototype._load = function () {
     var that = this;
     this._conn.open(function (err, collection) {
         if (err) return this.emit('error', toError(err));
+
         var conn = this;
         collection
             .find(query, options)
