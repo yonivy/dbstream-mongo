@@ -102,13 +102,19 @@ describe("DatabaseStream Mongo", function () {
         assert.deepEqual(res1.length, 0);
 
         // now add the doc and verify we can find it
-        await conn.save({ value });
+        const obj = { value }
+        await conn.save(obj);
+
+        // the passed object must be modified in place to not break the api
+        // this is why we expect to find the mongo generated id on it
+        assert(obj.id);
+
         const res2 = await conn.find({ value });
         const doc = res2[0];
 
         assert.deepEqual(res2.length, 1);
         assert.deepEqual(doc.value, value);
-        assert(doc.id);
+        assert(doc.id, obj.id);
     })
 
     it("Updates a document", async function () {
@@ -161,11 +167,11 @@ describe("DatabaseStream Mongo", function () {
 
         const value = 'a';
 
-        // make sure we start with a clean plate
+        // make sure we start with a clean slate
         const res1 = await conn.find({});
         assert.deepEqual(res1.length, 0);
 
-        // now add the doc and verify we can find it
+        // now add some docs and verify we find a subset of them
         await conn.save({ value });
         await conn.save({ value });
         await conn.save({ value: 'b' });
