@@ -1,6 +1,6 @@
 {
   "name": "dbstream-mongo",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Mongo DB access layer compatible with the Database Stream API",
   "main": "mongo.js",
   "scripts": {
