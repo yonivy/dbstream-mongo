@@ -1,6 +1,6 @@
 {
   "name": "dbstream-mongo",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Mongo DB access layer compatible with the Database Stream API",
   "main": "mongo.js",
   "scripts": {
@@ -29,7 +29,7 @@
     "mongodb-memory-server": "^9.1.3"
   },
   "dependencies": {
-    "dbstream": "git+https://github.com/panoplyio/dbstream#v1.0.3",
+    "dbstream": "github:panoplyio/dbstream#v2.0.0",
     "debug": "^4.3.4",
     "extend": "^3.0.2",
     "mongodb-legacy": "^5.0.0"
