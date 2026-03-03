@@ -1,7 +1,6 @@
 const debug = require('debug')('dbstream-mongo');
 const mongodb = require('mongodb-legacy');
 const events = require('events');
-const extend = require('extend');
 const db = require('dbstream');
 const util = require('util');
 
@@ -290,5 +289,5 @@ function toError(err) {
 
     // mongo sdk might return an object with the format { err: message }
     // instead of a proper Javascript Error instance
-    return extend(new Error(err.message || err.err), err);
+    return Object.assign(new Error(err.message || err.err), err);
 }
